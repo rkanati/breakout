@@ -14,8 +14,10 @@ const DROP_SPEED:  f32 = 300.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PickupKind {
+    Bonus(i32),
     ExtraBall,
     Detonator,
+    MultiBall,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -52,8 +54,13 @@ impl Pickups {
 
         use PickupKind::*;
         let kind = match self.rng.gen::<f32>() {
-            x if x < 0.5 => ExtraBall,
-            _            => Detonator,
+            x if x < 0.7 => {
+                let amount = (self.rng.gen::<f32>() * 100.) as i32 * 10;
+                Bonus(amount)
+            },
+            x if x < 0.8 => ExtraBall,
+            x if x < 0.9 => Detonator,
+            _            => MultiBall,
         };
 
         let position = block.rect.mins + 0.5 * block.rect.dims();

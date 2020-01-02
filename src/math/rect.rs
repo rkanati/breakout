@@ -38,6 +38,11 @@ impl Rect {
         Self::new(a, a + dims)
     }
 
+    pub fn new_square_centered(side: f32) -> Rect {
+        let d = side * 0.5;
+        Self::new_unchecked(P2::new(-d, -d), P2::new( d,  d))
+    }
+
     pub fn at(&self, origin: P2) -> Rect {
         let v = origin.coords;
         Rect { mins: self.mins + v, maxs: self.maxs + v }

@@ -29,8 +29,8 @@ fn block_color(block: &Block) -> graphics::Color {
         C::new(0.0, 0.0, 0.1, 1.), // dark blue
         C::new(0.2, 0.0, 0.1, 1.), // dark purple
         C::new(0.3, 0.0, 0.2, 1.), // purple
-        C::new(0.6, 0.0, 0.2, 1.), // red
-        C::new(0.7, 0.0, 0.0, 1.), // red
+        C::new(0.4, 0.0, 0.2, 1.), // red
+        C::new(0.6, 0.0, 0.0, 1.), // red
         C::new(0.9, 0.0, 0.0, 1.), // red
         C::new(0.9, 0.2, 0.0, 1.), // orange
         C::new(0.9, 0.5, 0.0, 1.), // orange
@@ -48,19 +48,63 @@ fn block_color(block: &Block) -> graphics::Color {
 const FRAMERATE: u32 = 180;
 const DT:        f32 = 1. / FRAMERATE as f32;
 
-struct App {
+struct Sprite<'ctx> {
+    pub mesh:  &'ctx graphics::Mesh,
+    pub angle: f32,
+}
+
+impl<'ctx> Sprite<'ctx> {
+    fn new(mesh: &'ctx graphics::Mesh, angle: f32) -> Sprite {
+        Sprite { mesh, angle }
+    }
+}
+
+struct App<'ctx> {
     state: game::State,
 
     font: graphics::Font,
+    bonus: graphics::Mesh,
+    heart: Sprite<'ctx>,
+    bomb:  Sprite<'ctx>,
+    multi: Sprite<'ctx>,
 }
 
 impl App {
     fn new(ctx: &mut Context, state: game::State) -> GameResult<App> {
         let font = graphics::Font::new(ctx, "/Signika-SemiBold.ttf")?;
 
-        let game = App { state, font };
+        let heart_points = [
+            P2::new( 0., -6.),
+            P2::new(-6.,  0.),
+            P2::new(-3.,  3.),
+            P2::new( 0.,  0.),
+            P2::new( 3.,  3.),
+            P2::new( 6.,  0.),
+        ];
+
+        let heart = graphics::Mesh::new_polygon(
+            ctx,
+            graphics::DrawMode::fill(),
+            &heart_points,
+            [1., 0., 0., 1.].into()
+        )?;
+
+        let game = App { state, font, heart };
         Ok(game)
     }
+
+    fn pickup_sprite(&self, kind: game::PickupKind) -> Sprite {
+        use game::PickupKind::*;
+        match kind {
+            Bonus(amount) => bonus_sprite(amount),
+            ExtraBall => self.heart,
+            Detonator => Sprite::new(15., 0., [1.0, 0.0, 0.0, 1.].into()),
+            MultiBall => Sprite::new(15., 0., [0.0, 1.0, 0.0, 1.].into()),
+        }
+    }
+}
+
+fn bonus_sprite(amount: i32) -> Sprite {
 }
 
 impl event::EventHandler for App {
@@ -120,15 +164,21 @@ impl event::EventHandler for App {
             graphics::draw(ctx, &block_mesh, (P2::new(0., 0.), ))?;
         }
 
-        let pickup_mesh = graphics::Mesh::new_rectangle(
-            ctx,
-            graphics::DrawMode::fill(),
-            Rect::new(P2::new(-8., -8.), P2::new(8., 8.)).into(),
-            [0.0, 1.0, 0.2, 1.].into()
-        )?;
-
         for pickup in frame.pickups {
-            graphics::draw(ctx, &pickup_mesh, (pickup.position, ))?;
+            let sprite = pickup_sprite(pickup.kind);
+
+            let mesh = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                Rect::new_square_centered(sprite.size).into(),
+                sprite.color,
+            )?;
+
+            let params = graphics::DrawParam::new()
+                .dest(pickup.position)
+                .rotation(sprite.angle);
+
+            graphics::draw(ctx, &mesh, params)?;
         }
 
         let status_line = format!(

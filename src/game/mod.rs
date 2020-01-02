@@ -2,6 +2,8 @@
 mod pickups;
 mod scoring;
 
+pub use pickups::PickupKind;
+
 use {
     self::{
         pickups::*,
