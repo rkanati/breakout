@@ -21,6 +21,7 @@ use {
 
 const KEY_LEFT : keyboard::KeyCode = keyboard::KeyCode::A;
 const KEY_RIGHT: keyboard::KeyCode = keyboard::KeyCode::D;
+const KEY_SERVE: keyboard::KeyCode = keyboard::KeyCode::Space;
 
 fn block_color(block: &Block) -> graphics::Color {
     use graphics::Color as C;
@@ -44,7 +45,7 @@ fn block_color(block: &Block) -> graphics::Color {
     }
 }
 
-const FRAMERATE: u32 = 120;
+const FRAMERATE: u32 = 180;
 const DT:        f32 = 1. / FRAMERATE as f32;
 
 struct App {
@@ -72,7 +73,9 @@ impl event::EventHandler for App {
             else if right && !left {  1 }
             else                   {  0 };
 
-        let input = game::Input { paddle_dir };
+        let serve = keyboard::is_key_pressed(ctx, KEY_SERVE);
+
+        let input = game::Input { paddle_dir, serve };
 
         while timer::check_update_time(ctx, FRAMERATE) {
             if !self.state.update(DT, input) {
@@ -88,7 +91,7 @@ impl event::EventHandler for App {
         let alpha = timer::remaining_update_time(ctx).as_secs_f32() * FRAMERATE as f32;
         let frame = self.state.frame(alpha);
 
-        graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
+        graphics::clear(ctx, [0.05, 0.10, 0.15, 1.].into());
 
         let paddle_mesh = graphics::Mesh::new_rectangle(
             ctx,
@@ -117,6 +120,17 @@ impl event::EventHandler for App {
             graphics::draw(ctx, &block_mesh, (P2::new(0., 0.), ))?;
         }
 
+        let pickup_mesh = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            Rect::new(P2::new(-8., -8.), P2::new(8., 8.)).into(),
+            [0.0, 1.0, 0.2, 1.].into()
+        )?;
+
+        for pickup in frame.pickups {
+            graphics::draw(ctx, &pickup_mesh, (pickup.position, ))?;
+        }
+
         let status_line = format!(
             "Score: {:8} Combo: x{:1.1} {:+8}",
             frame.scoring.score,
@@ -131,7 +145,8 @@ impl event::EventHandler for App {
             ctx,
             &text,
             graphics::DrawParam::new()
-                .dest(P2::new(1., 21.))
+                .dest(frame.rect.mins + V2::new(1., 21.))
+                //.dest(P2::new(1., 21.))
                 .scale(V2::new(1., -1.)),
         )?;
 
@@ -144,10 +159,11 @@ impl event::EventHandler for App {
 pub fn main() -> GameResult {
     let seed = rand::rngs::OsRng.next_u64();
     let state = game::State::new(seed);
+    let rect = state.rect();
 
     let window_mode = ggez::conf::WindowMode {
-        width:  state.width() as f32,
-        height: state.height() as f32,
+        width:  rect.width(),
+        height: rect.height(),
         maximized: false,
         fullscreen_type: ggez::conf::FullscreenType::Windowed,
         borderless: false,
@@ -178,13 +194,9 @@ pub fn main() -> GameResult {
         .window_setup(window_setup)
         .build()?;
 
-    let screen_rect = graphics::Rect::new(
-        state.left() as f32,
-        state.top() as f32,
-        state.width() as f32,
-        -state.height() as f32,
-    );
-
+    let mut screen_rect = graphics::Rect::from(rect);
+    screen_rect.y = screen_rect.h;
+    screen_rect.h *= -1.;
     graphics::set_screen_coordinates(ctx, screen_rect)?;
 
     let app = &mut App::new(ctx, state)?;

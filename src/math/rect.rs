@@ -15,8 +15,8 @@ pub enum CollideFrom {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Rect {
-    mins: P2,
-    maxs: P2
+    pub mins: P2,
+    pub maxs: P2
 }
 
 impl Rect {
@@ -49,6 +49,15 @@ impl Rect {
 
     pub fn height(&self) -> f32 {
         self.maxs.y - self.mins.y
+    }
+
+    pub fn dims(&self) -> V2 {
+        V2::new(self.width(), self.height())
+    }
+
+    pub fn contains(&self, p: P2) -> bool {
+           (self.mins.x .. self.maxs.x).contains(&p.x)
+        && (self.mins.y .. self.maxs.y).contains(&p.y)
     }
 
     pub fn vertices(&self) -> [P2; 4] {
